@@ -146,7 +146,7 @@ func init() {
 
 func main() {
 	var (
-		listenAddress = flag.String("web.listen-address", ":9256",
+		listenAddress = flag.String("web.listen-address", ":9255",
 			"Address on which to expose metrics and web interface.")
 		metricsPath = flag.String("web.telemetry-path", "/metrics",
 			"Path under which to expose metrics.")
@@ -245,6 +245,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error initializing: %v", err)
 	}
+
+	collector.NewCPUFreqCollector()
 
 	prometheus.MustRegister(pc)
 

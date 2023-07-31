@@ -3,6 +3,8 @@ module github.com/ncabatoff/process-exporter
 go 1.13
 
 require (
+	github.com/alecthomas/kingpin/v2 v2.3.2
+	github.com/go-kit/log v0.1.0
 	github.com/google/go-cmp v0.5.6
 	github.com/kr/pretty v0.3.0 // indirect
 	github.com/ncabatoff/fakescraper v0.0.0-20201102132415-4b37ba603d65

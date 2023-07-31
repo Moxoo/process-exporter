@@ -2,6 +2,7 @@ package proc
 
 import (
 	"fmt"
+	"log/syslog"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -598,6 +599,14 @@ func NewFS(mountPoint string, debug bool) (*FS, error) {
 		return nil, err
 	}
 	return &FS{fs, stat.BootTime, mountPoint, false, debug}, nil
+}
+
+func SyslogCon() (*syslog.Writer, error) {
+	sysLogger, err := syslog.New(syslog.LOG_INFO|syslog.LOG_USER, "process-exporter")
+	if err != nil {
+		return nil, err
+	}
+	return sysLogger, nil
 }
 
 func (fs *FS) threadFs(pid int) (*FS, error) {

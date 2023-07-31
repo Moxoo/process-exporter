@@ -1,7 +1,10 @@
 package collector
 
 import (
+	"fmt"
 	"log"
+	"log/syslog"
+	"time"
 
 	common "github.com/ncabatoff/process-exporter"
 	"github.com/ncabatoff/process-exporter/proc"
@@ -148,6 +151,11 @@ var (
 		nil)
 )
 
+var sysLogger *syslog.Writer
+var sysLogConErr error
+var interval = 3*time.Second
+var lastGroupByName proc.GroupByName
+
 type (
 	scrapeRequest struct {
 		results chan<- prometheus.Metric
@@ -183,6 +191,12 @@ func NewProcessCollector(options ProcessCollectorOption) (*NamedProcessCollector
 		return nil, err
 	}
 
+	sysLogger, sysLogConErr = proc.SyslogCon()
+	if sysLogConErr != nil {
+		return nil, sysLogConErr
+	}
+	defer sysLogger.Close()
+
 	fs.GatherSMaps = options.GatherSMaps
 	p := &NamedProcessCollector{
 		scrapeChan: make(chan scrapeRequest),
@@ -203,8 +217,12 @@ func NewProcessCollector(options ProcessCollectorOption) (*NamedProcessCollector
 	p.scrapePartialErrors += colErrs.Partial
 	p.scrapeProcReadErrors += colErrs.Read
 
+	// 开启prometheus协程
 	go p.start()
-
+	// 开启定时采集进程信息的协程
+	go p.startGetProcInfo()
+	//
+	//go
 	return p, nil
 }
 
@@ -247,6 +265,13 @@ func (p *NamedProcessCollector) start() {
 		ch := req.results
 		p.scrape(ch)
 		req.done <- struct{}{}
+	}
+}
+
+func (p *NamedProcessCollector) startGetProcInfo() {
+	p.scrapeProcInfo()
+	for range time.Tick(interval) {
+		p.scrapeProcInfo()
 	}
 }
 
@@ -352,4 +377,31 @@ func (p *NamedProcessCollector) scrape(ch chan<- prometheus.Metric) {
 		prometheus.CounterValue, float64(p.scrapeProcReadErrors))
 	ch <- prometheus.MustNewConstMetric(scrapePartialErrorsDesc,
 		prometheus.CounterValue, float64(p.scrapePartialErrors))
+}
+
+func (p *NamedProcessCollector) scrapeProcInfo() {
+	permErrs, groups, err := p.Update(p.source.AllProcs())
+	p.scrapePartialErrors += permErrs.Partial
+	if err != nil {
+		p.scrapeErrors++
+		log.Printf("error reading procs: %v", err)
+	} else {
+		log.Print(len(groups))
+		if (len(lastGroupByName) > 0) {
+			for gname, gcounts := range groups {
+				log.Printf("%s", gname)
+				// update
+				cpuUsageUser := float64(100 * (gcounts.CPUUserTime - lastGroupByName[gname].CPUUserTime) / interval.Seconds())
+				cpuUsageSys := float64(100 * (gcounts.CPUSystemTime - lastGroupByName[gname].CPUSystemTime) / interval.Seconds())
+				cpuUsage := float64(cpuUsageUser + cpuUsageSys)
+				// procInfo:nodeName|用户态的CPU使用率|内核态的CPU使用率|总CPU使用率|物理内存|虚拟内存
+				sysFormat := "%s:%s|%.1f|%.1f|%.1f|%d|%d"
+				buffer := fmt.Sprintf(sysFormat, "procInfo", gname, cpuUsageUser, cpuUsageSys, cpuUsage, gcounts.Memory.ResidentBytes, gcounts.Memory.VirtualBytes)
+				sysLogger.Info(buffer)
+				log.Print(buffer)
+			}
+		}
+		// record last group info
+		lastGroupByName = groups
+	}
 }

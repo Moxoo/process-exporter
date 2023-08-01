@@ -21,12 +21,14 @@ import (
 	"fmt"
 	"github.com/prometheus/procfs/sysfs"
 	"log"
+	"log/syslog"
 	"strconv"
 	"time"
 )
 
 type cpuFreqCollector struct {
 	fs     sysfs.FS
+	syslog *syslog.Writer
 }
 
 var (
@@ -34,19 +36,26 @@ var (
 )
 
 // NewCPUFreqCollector returns a new Collector exposing kernel/system statistics.
-func NewCPUFreqCollector() (*cpuFreqCollector, error) {
+func NewCPUFreqCollector() error {
 	fs, err := sysfs.NewFS(sysPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open sysfs: %w", err)
+		return fmt.Errorf("failed to open sysfs: %w", err)
 	}
+
+	sysLogger, sysLogConErr := syslog.New(syslog.LOG_INFO | syslog.LOG_USER, "cpufreq")
+	if sysLogConErr != nil {
+		return fmt.Errorf("failed to connect syslog: %w", sysLogConErr)
+	}
+	defer sysLogger.Close()
 
 	c := &cpuFreqCollector{
 		fs:     fs,
+		syslog: sysLogger,
 	}
 
 	go c.start()
 
-	return c, nil
+	return nil
 }
 
 func (c *cpuFreqCollector) start() {
@@ -57,14 +66,10 @@ func (c *cpuFreqCollector) start() {
 }
 
 func (c *cpuFreqCollector) scrape() {
-	begin := time.Now()
 	err := c.Update()
-	duration := time.Since(begin)
 
 	if err != nil {
 		log.Println(err)
-	} else {
-		log.Printf("cpufreq collector succeeded, duration_seconds: %f", duration.Seconds())
 	}
 }
 
@@ -81,6 +86,7 @@ func (c *cpuFreqCollector) Update() error {
 	for _, stats := range cpuFreqs {
 		if stats.CpuinfoCurrentFrequency != nil {
 			//log.Printf("cur: %f", float64(*stats.CpuinfoCurrentFrequency)*1000.0)
+			cpuFreqsList.PushBack(stats.Name + ":" + strconv.FormatInt(int64(*stats.CpuinfoCurrentFrequency*1000.0), 10))
 		}
 		if stats.CpuinfoMinimumFrequency != nil {
 			//log.Printf("min: %f", float64(*stats.CpuinfoMinimumFrequency)*1000.0)
@@ -89,7 +95,7 @@ func (c *cpuFreqCollector) Update() error {
 			//log.Printf("max: %f", float64(*stats.CpuinfoMaximumFrequency)*1000.0)
 		}
 		if stats.ScalingCurrentFrequency != nil {
-			cpuFreqsList.PushBack(stats.Name + ":" + strconv.Itoa(int(*stats.ScalingCurrentFrequency)*1000.0))
+			//log.Printf("max: %f", float64(*stats.ScalingCurrentFrequency)*1000.0)
 		}
 		if stats.ScalingMinimumFrequency != nil {
 			//log.Printf("scale min: %f", float64(*stats.ScalingMinimumFrequency)*1000.0)
@@ -107,6 +113,10 @@ func (c *cpuFreqCollector) Update() error {
 			cpuFreqsFormat += "|"
 		}
 	}
-	log.Printf("%s", cpuFreqsFormat)
+	//log.Printf("%s", cpuFreqsFormat)
+	sysLogWriteErr := c.syslog.Info(cpuFreqsFormat)
+	if sysLogWriteErr != nil {
+		return sysLogWriteErr
+	}
 	return nil
 }

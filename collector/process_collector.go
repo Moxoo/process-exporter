@@ -151,8 +151,6 @@ var (
 		nil)
 )
 
-var sysLogger *syslog.Writer
-var sysLogConErr error
 var interval = 3*time.Second
 var lastGroupByName proc.GroupByName
 
@@ -182,6 +180,7 @@ type (
 		scrapeProcReadErrors int
 		scrapePartialErrors  int
 		debug                bool
+		syslog               *syslog.Writer
 	}
 )
 
@@ -191,9 +190,9 @@ func NewProcessCollector(options ProcessCollectorOption) (*NamedProcessCollector
 		return nil, err
 	}
 
-	sysLogger, sysLogConErr = proc.SyslogCon()
+	sysLogger, sysLogConErr := syslog.New(syslog.LOG_INFO | syslog.LOG_USER, "procinfo")
 	if sysLogConErr != nil {
-		return nil, sysLogConErr
+		return nil, fmt.Errorf("failed to connect syslog: %w", sysLogConErr)
 	}
 	defer sysLogger.Close()
 
@@ -205,6 +204,7 @@ func NewProcessCollector(options ProcessCollectorOption) (*NamedProcessCollector
 		threads:    options.Threads,
 		smaps:      options.GatherSMaps,
 		debug:      options.Debug,
+		syslog:     sysLogger,
 	}
 
 	colErrs, _, err := p.Update(p.source.AllProcs())
@@ -386,19 +386,20 @@ func (p *NamedProcessCollector) scrapeProcInfo() {
 		p.scrapeErrors++
 		log.Printf("error reading procs: %v", err)
 	} else {
-		log.Print(len(groups))
-		if (len(lastGroupByName) > 0) {
+		if len(lastGroupByName) > 0 {
 			for gname, gcounts := range groups {
-				log.Printf("%s", gname)
 				// update
-				cpuUsageUser := float64(100 * (gcounts.CPUUserTime - lastGroupByName[gname].CPUUserTime) / interval.Seconds())
-				cpuUsageSys := float64(100 * (gcounts.CPUSystemTime - lastGroupByName[gname].CPUSystemTime) / interval.Seconds())
-				cpuUsage := float64(cpuUsageUser + cpuUsageSys)
+				cpuUsageUser := 100 * (gcounts.CPUUserTime - lastGroupByName[gname].CPUUserTime) / interval.Seconds()
+				cpuUsageSys := 100 * (gcounts.CPUSystemTime - lastGroupByName[gname].CPUSystemTime) / interval.Seconds()
+				cpuUsage := cpuUsageUser + cpuUsageSys
 				// procInfo:nodeName|用户态的CPU使用率|内核态的CPU使用率|总CPU使用率|物理内存|虚拟内存
-				sysFormat := "%s:%s|%.1f|%.1f|%.1f|%d|%d"
-				buffer := fmt.Sprintf(sysFormat, "procInfo", gname, cpuUsageUser, cpuUsageSys, cpuUsage, gcounts.Memory.ResidentBytes, gcounts.Memory.VirtualBytes)
-				sysLogger.Info(buffer)
-				log.Print(buffer)
+				sysFormat := "%s|%.1f|%.1f|%.1f|%d|%d"
+				buffer := fmt.Sprintf(sysFormat, gname, cpuUsageUser, cpuUsageSys, cpuUsage, gcounts.Memory.ResidentBytes, gcounts.Memory.VirtualBytes)
+				//log.Printf("%s", buffer)
+				sysLogWriteErr := p.syslog.Info(buffer)
+				if sysLogWriteErr != nil {
+					log.Println(sysLogWriteErr)
+				}
 			}
 		}
 		// record last group info

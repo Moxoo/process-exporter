@@ -146,7 +146,7 @@ func init() {
 
 func main() {
 	var (
-		listenAddress = flag.String("web.listen-address", ":9255",
+		listenAddress = flag.String("web.listen-address", ":9256",
 			"Address on which to expose metrics and web interface.")
 		metricsPath = flag.String("web.telemetry-path", "/metrics",
 			"Path under which to expose metrics.")
@@ -231,6 +231,7 @@ func main() {
 		matchnamer = namemapper
 	}
 
+	// create proc info collector
 	pc, err := collector.NewProcessCollector(
 		collector.ProcessCollectorOption{
 			ProcFSPath:  *procfsPath,
@@ -246,7 +247,11 @@ func main() {
 		log.Fatalf("Error initializing: %v", err)
 	}
 
-	collector.NewCPUFreqCollector()
+	// create cpu freq collector
+	err = collector.NewCPUFreqCollector()
+	if err != nil {
+		log.Fatalf("Error initializing: %v", err)
+	}
 
 	prometheus.MustRegister(pc)
 

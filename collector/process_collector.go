@@ -1,9 +1,12 @@
 package collector
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"log/syslog"
+	"net"
+	"os"
 	"time"
 
 	common "github.com/ncabatoff/process-exporter"
@@ -153,6 +156,9 @@ var (
 
 var interval = 3*time.Second
 var lastGroupByName proc.GroupByName
+var hostname, _ = os.Hostname()
+var ip, _ = net.LookupIP(hostname)
+var pid = os.Getpid()
 
 type (
 	scrapeRequest struct {
@@ -181,6 +187,7 @@ type (
 		scrapePartialErrors  int
 		debug                bool
 		syslog               *syslog.Writer
+		sqlite               *sql.DB
 	}
 )
 
@@ -196,6 +203,30 @@ func NewProcessCollector(options ProcessCollectorOption) (*NamedProcessCollector
 	}
 	defer sysLogger.Close()
 
+	sqliteDb, sqliteDbErr := sql.Open("sqlite3", "/userdata/log/sqlite/exporter.db")
+	if sqliteDbErr != nil {
+		return nil, fmt.Errorf("failed to open sqlite: %w", sqliteDbErr)
+	}
+
+	_, sqliteCreateErr := sqliteDb.Exec(`
+		CREATE TABLE IF NOT EXISTS procinfo (
+		    ts INTEGER,
+		    hostname TEXT,
+		    ip TEXT,
+		    pid INTEGER,
+		    procname TEXT,
+		    cpu_user DOUBLE,
+		    cpu_sys DOUBLE,
+		    cpu DOUBLE,
+		    mem_res INTEGER,
+		    mem_vir INTEGER,
+			PRIMARY KEY (ts, hostname, ip, pid, procname)
+		)
+	`)
+	if sqliteCreateErr != nil {
+		return nil, fmt.Errorf("error creating table: %w", sqliteCreateErr)
+	}
+
 	fs.GatherSMaps = options.GatherSMaps
 	p := &NamedProcessCollector{
 		scrapeChan: make(chan scrapeRequest),
@@ -205,6 +236,7 @@ func NewProcessCollector(options ProcessCollectorOption) (*NamedProcessCollector
 		smaps:      options.GatherSMaps,
 		debug:      options.Debug,
 		syslog:     sysLogger,
+		sqlite:     sqliteDb,
 	}
 
 	colErrs, _, err := p.Update(p.source.AllProcs())
@@ -392,13 +424,23 @@ func (p *NamedProcessCollector) scrapeProcInfo() {
 				cpuUsageUser := 100 * (gcounts.CPUUserTime - lastGroupByName[gname].CPUUserTime) / interval.Seconds()
 				cpuUsageSys := 100 * (gcounts.CPUSystemTime - lastGroupByName[gname].CPUSystemTime) / interval.Seconds()
 				cpuUsage := cpuUsageUser + cpuUsageSys
-				// procInfo:nodeName|用户态的CPU使用率|内核态的CPU使用率|总CPU使用率|物理内存|虚拟内存
+				// write syslog: nodeName|用户态的CPU使用率|内核态的CPU使用率|总CPU使用率|物理内存|虚拟内存
 				sysFormat := "%s|%.1f|%.1f|%.1f|%d|%d"
 				buffer := fmt.Sprintf(sysFormat, gname, cpuUsageUser, cpuUsageSys, cpuUsage, gcounts.Memory.ResidentBytes, gcounts.Memory.VirtualBytes)
 				//log.Printf("%s", buffer)
 				sysLogWriteErr := p.syslog.Info(buffer)
 				if sysLogWriteErr != nil {
 					log.Println(sysLogWriteErr)
+				}
+
+				// insert sqlite
+				ts := time.Now().UnixMilli()
+				_, sqliteInsertErr := p.sqlite.Exec("INSERT INTO procinfo (ts, hostname, ip, pid, procname, cpu_user, cpu_sys, cpu, mem_res, mem_vir) " +
+					"VALUES (?,?,?,?,?,?,?,?,?,?)",
+					ts, hostname, ip[0].String(), pid, gname,
+					fmt.Sprintf("%.1f", cpuUsageUser), fmt.Sprintf("%.1f", cpuUsageSys), fmt.Sprintf("%.1f", cpuUsage), gcounts.Memory.ResidentBytes, gcounts.Memory.VirtualBytes)
+				if sqliteInsertErr != nil {
+					log.Println(sqliteInsertErr)
 				}
 			}
 		}

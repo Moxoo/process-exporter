@@ -7,6 +7,7 @@ require (
 	github.com/go-kit/log v0.1.0
 	github.com/google/go-cmp v0.5.6
 	github.com/kr/pretty v0.3.0 // indirect
+	github.com/mattn/go-sqlite3 v1.14.17 // indirect
 	github.com/ncabatoff/fakescraper v0.0.0-20201102132415-4b37ba603d65
 	github.com/ncabatoff/go-seq v0.0.0-20180805175032-b08ef85ed833
 	github.com/prometheus/client_golang v1.11.0

@@ -18,7 +18,9 @@ package collector
 
 import (
 	"container/list"
+	"database/sql"
 	"fmt"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/prometheus/procfs/sysfs"
 	"log"
 	"log/syslog"
@@ -29,6 +31,7 @@ import (
 type cpuFreqCollector struct {
 	fs     sysfs.FS
 	syslog *syslog.Writer
+	sqlite *sql.DB
 }
 
 var (
@@ -48,9 +51,36 @@ func NewCPUFreqCollector() error {
 	}
 	defer sysLogger.Close()
 
+	sqliteDb, sqliteDbErr := sql.Open("sqlite3", "/userdata/log/sqlite/exporter.db")
+	if sqliteDbErr != nil {
+		return fmt.Errorf("failed to open sqlite: %w", sqliteDbErr)
+	}
+
+	_, sqliteCreateErr := sqliteDb.Exec(`
+		CREATE TABLE IF NOT EXISTS cpufreq (
+		    ts INTEGER,
+		    hostname TEXT,
+		    ip TEXT,
+		    pid INTEGER,
+		    cpu0 INTEGER,
+		    cpu1 INTEGER,
+		    cpu2 INTEGER,
+		    cpu3 INTEGER,
+		    cpu4 INTEGER,
+		    cpu5 INTEGER,
+		    cpu6 INTEGER,
+		    cpu7 INTEGER,
+			PRIMARY KEY (ts, hostname, ip, pid)
+		)
+	`)
+	if sqliteCreateErr != nil {
+		return fmt.Errorf("error creating table: %w", sqliteCreateErr)
+	}
+
 	c := &cpuFreqCollector{
 		fs:     fs,
 		syslog: sysLogger,
+		sqlite: sqliteDb,
 	}
 
 	go c.start()
@@ -81,31 +111,18 @@ func (c *cpuFreqCollector) Update() error {
 	}
 
 	cpuFreqsList := list.New()
+	cpuFreqsMap := make(map[string]int64)
 	// sysfs cpufreq values are kHz, thus multiply by 1000 to export base units (hz).
 	// See https://www.kernel.org/doc/Documentation/cpu-freq/user-guide.txt
 	for _, stats := range cpuFreqs {
 		if stats.CpuinfoCurrentFrequency != nil {
 			//log.Printf("cur: %f", float64(*stats.CpuinfoCurrentFrequency)*1000.0)
 			cpuFreqsList.PushBack(stats.Name + ":" + strconv.FormatInt(int64(*stats.CpuinfoCurrentFrequency*1000.0), 10))
-		}
-		if stats.CpuinfoMinimumFrequency != nil {
-			//log.Printf("min: %f", float64(*stats.CpuinfoMinimumFrequency)*1000.0)
-		}
-		if stats.CpuinfoMaximumFrequency != nil {
-			//log.Printf("max: %f", float64(*stats.CpuinfoMaximumFrequency)*1000.0)
-		}
-		if stats.ScalingCurrentFrequency != nil {
-			//log.Printf("max: %f", float64(*stats.ScalingCurrentFrequency)*1000.0)
-		}
-		if stats.ScalingMinimumFrequency != nil {
-			//log.Printf("scale min: %f", float64(*stats.ScalingMinimumFrequency)*1000.0)
-		}
-		if stats.ScalingMaximumFrequency != nil {
-			//log.Printf("scale max: %f", float64(*stats.ScalingMaximumFrequency)*1000.0)
+			cpuFreqsMap[stats.Name] = int64(*stats.CpuinfoCurrentFrequency*1000.0)
 		}
 	}
 
-	// Traverse the list and print its elements
+	// write syslog
 	cpuFreqsFormat := ""
 	for e := cpuFreqsList.Front(); e != nil; e = e.Next() {
 		cpuFreqsFormat += e.Value.(string)
@@ -113,10 +130,20 @@ func (c *cpuFreqCollector) Update() error {
 			cpuFreqsFormat += "|"
 		}
 	}
-	//log.Printf("%s", cpuFreqsFormat)
 	sysLogWriteErr := c.syslog.Info(cpuFreqsFormat)
 	if sysLogWriteErr != nil {
 		return sysLogWriteErr
 	}
+
+	// insert sqlite
+	ts := time.Now().UnixMilli()
+	_, sqliteInsertErr := c.sqlite.Exec("INSERT INTO cpufreq (ts, hostname, ip, pid, cpu0, cpu1, cpu2, cpu3, cpu4, cpu5, cpu6, cpu7) " +
+		"VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+		ts, hostname, ip[0].String(), pid,
+		cpuFreqsMap["0"], cpuFreqsMap["1"], cpuFreqsMap["2"], cpuFreqsMap["3"], cpuFreqsMap["4"],cpuFreqsMap["5"], cpuFreqsMap["6"], cpuFreqsMap["7"])
+	if sqliteInsertErr != nil {
+		return sqliteInsertErr
+	}
+
 	return nil
 }

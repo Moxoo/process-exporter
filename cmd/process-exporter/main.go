@@ -244,14 +244,24 @@ func main() {
 		},
 	)
 	if err != nil {
-		log.Fatalf("Error initializing: %v", err)
+		log.Fatalf("Error initializing proc info collector: %v", err)
 	}
 
-	// create cpu freq collector
-	err = collector.NewCPUFreqCollector()
-	if err != nil {
-		log.Fatalf("Error initializing: %v", err)
-	}
+	// create cpu freq collector goroutine
+	go func() {
+		err = collector.NewCPUFreqCollector()
+		if err != nil {
+			log.Fatalf("Error initializing cpu freq collector: %v", err)
+		}
+	}()
+
+	// create cpu collector goroutine
+	go func() {
+		err = collector.NewCPUCollector()
+		if err != nil {
+			log.Fatalf("Error initializing cpu collector: %v", err)
+		}
+	}()
 
 	prometheus.MustRegister(pc)
 

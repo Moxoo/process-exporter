@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"log"
 	"log/syslog"
-	"net"
-	"os"
 	"time"
 
 	common "github.com/ncabatoff/process-exporter"
@@ -154,11 +152,8 @@ var (
 		nil)
 )
 
-var interval = 3*time.Second
 var lastGroupByName proc.GroupByName
-var hostname, _ = os.Hostname()
-var ip, _ = net.LookupIP(hostname)
-var pid = os.Getpid()
+var counter = 0
 
 type (
 	scrapeRequest struct {
@@ -197,13 +192,13 @@ func NewProcessCollector(options ProcessCollectorOption) (*NamedProcessCollector
 		return nil, err
 	}
 
-	sysLogger, sysLogConErr := syslog.New(syslog.LOG_INFO | syslog.LOG_USER, "procinfo")
+	sysLogger, sysLogConErr := syslog.New(syslog.LOG_INFO|syslog.LOG_USER, "procinfo")
 	if sysLogConErr != nil {
 		return nil, fmt.Errorf("failed to connect syslog: %w", sysLogConErr)
 	}
 	defer sysLogger.Close()
 
-	sqliteDb, sqliteDbErr := sql.Open("sqlite3", "/userdata/log/sqlite/exporter.db")
+	sqliteDb, sqliteDbErr := sql.Open("sqlite3", "/var/log/sqlite/exporter.db")
 	if sqliteDbErr != nil {
 		return nil, fmt.Errorf("failed to open sqlite: %w", sqliteDbErr)
 	}
@@ -302,7 +297,7 @@ func (p *NamedProcessCollector) start() {
 
 func (p *NamedProcessCollector) startGetProcInfo() {
 	p.scrapeProcInfo()
-	for range time.Tick(interval) {
+	for range time.Tick(procinfoCollectInterval) {
 		p.scrapeProcInfo()
 	}
 }
@@ -412,18 +407,20 @@ func (p *NamedProcessCollector) scrape(ch chan<- prometheus.Metric) {
 }
 
 func (p *NamedProcessCollector) scrapeProcInfo() {
+	counter++
 	permErrs, groups, err := p.Update(p.source.AllProcs())
 	p.scrapePartialErrors += permErrs.Partial
 	if err != nil {
 		p.scrapeErrors++
 		log.Printf("error reading procs: %v", err)
 	} else {
-		if len(lastGroupByName) > 0 {
+		if len(lastGroupByName) > 0 && counter == procinfoSyslogWriteScale {
 			for gname, gcounts := range groups {
 				// update
-				cpuUsageUser := 100 * (gcounts.CPUUserTime - lastGroupByName[gname].CPUUserTime) / interval.Seconds()
-				cpuUsageSys := 100 * (gcounts.CPUSystemTime - lastGroupByName[gname].CPUSystemTime) / interval.Seconds()
+				cpuUsageUser := 100 * (gcounts.CPUUserTime - lastGroupByName[gname].CPUUserTime) / procinfoCollectInterval.Seconds()
+				cpuUsageSys := 100 * (gcounts.CPUSystemTime - lastGroupByName[gname].CPUSystemTime) / procinfoCollectInterval.Seconds()
 				cpuUsage := cpuUsageUser + cpuUsageSys
+
 				// write syslog: nodeName|用户态的CPU使用率|内核态的CPU使用率|总CPU使用率|物理内存|虚拟内存
 				sysFormat := "%s|%.1f|%.1f|%.1f|%d|%d"
 				buffer := fmt.Sprintf(sysFormat, gname, cpuUsageUser, cpuUsageSys, cpuUsage, gcounts.Memory.ResidentBytes, gcounts.Memory.VirtualBytes)
@@ -435,7 +432,7 @@ func (p *NamedProcessCollector) scrapeProcInfo() {
 
 				// insert sqlite
 				ts := time.Now().UnixMilli()
-				_, sqliteInsertErr := p.sqlite.Exec("INSERT INTO procinfo (ts, hostname, ip, pid, procname, cpu_user, cpu_sys, cpu, mem_res, mem_vir) " +
+				_, sqliteInsertErr := p.sqlite.Exec("INSERT INTO procinfo (ts, hostname, ip, pid, procname, cpu_user, cpu_sys, cpu, mem_res, mem_vir) "+
 					"VALUES (?,?,?,?,?,?,?,?,?,?)",
 					ts, hostname, ip[0].String(), pid, gname,
 					fmt.Sprintf("%.1f", cpuUsageUser), fmt.Sprintf("%.1f", cpuUsageSys), fmt.Sprintf("%.1f", cpuUsage), gcounts.Memory.ResidentBytes, gcounts.Memory.VirtualBytes)
@@ -443,6 +440,7 @@ func (p *NamedProcessCollector) scrapeProcInfo() {
 					log.Println(sqliteInsertErr)
 				}
 			}
+			counter = 0
 		}
 		// record last group info
 		lastGroupByName = groups

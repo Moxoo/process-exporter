@@ -3,8 +3,6 @@ module github.com/ncabatoff/process-exporter
 go 1.13
 
 require (
-	github.com/alecthomas/kingpin/v2 v2.3.2
-	github.com/go-kit/log v0.1.0
 	github.com/google/go-cmp v0.5.9
 	github.com/kr/pretty v0.3.0 // indirect
 	github.com/mattn/go-sqlite3 v1.14.17 // indirect

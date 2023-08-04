@@ -33,7 +33,6 @@ type cpuFreqCollector struct {
 	syslog *syslog.Writer
 }
 
-var lastCpuFreqs []sysfs.SystemCPUCpufreqStats
 var cpuFreqsCounter = 0
 var lastCpuFreqsList = list.New()
 

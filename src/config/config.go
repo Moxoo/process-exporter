@@ -3,15 +3,14 @@ package config
 import (
 	"bytes"
 	"fmt"
+	"github.com/ncabatoff/process-exporter/src/common"
 	"io/ioutil"
-	"log"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"text/template"
 	"time"
 
-	common "github.com/ncabatoff/process-exporter"
 	"gopkg.in/yaml.v2"
 )
 
@@ -269,19 +268,16 @@ func (r MatcherRules) ToConfig() (*Config, error) {
 }
 
 // ReadRecipesFile opens the named file and extracts recipes from it.
-func ReadFile(cfgpath string, debug bool) (*Config, error) {
+func ReadFile(cfgpath string) (*Config, error) {
 	content, err := ioutil.ReadFile(cfgpath)
 	if err != nil {
 		return nil, fmt.Errorf("error reading config file %q: %v", cfgpath, err)
 	}
-	if debug {
-		log.Printf("Config file %q contents:\n%s", cfgpath, content)
-	}
-	return GetConfig(string(content), debug)
+	return GetConfig(string(content))
 }
 
 // GetConfig extracts Config from content by parsing it as YAML.
-func GetConfig(content string, debug bool) (*Config, error) {
+func GetConfig(content string) (*Config, error) {
 	var cfg Config
 	err := yaml.Unmarshal([]byte(content), &cfg)
 	if err != nil {

@@ -2,13 +2,11 @@ package proc
 
 import (
 	"fmt"
+	"github.com/ncabatoff/process-exporter/src/common"
 	"log"
 	"os/user"
 	"strconv"
 	"time"
-
-	seq "github.com/ncabatoff/go-seq/seq"
-	common "github.com/ncabatoff/process-exporter"
 )
 
 type (
@@ -109,10 +107,6 @@ type (
 
 func lessUpdateGroupName(x, y Update) bool { return x.GroupName < y.GroupName }
 
-func lessThreadUpdate(x, y ThreadUpdate) bool { return seq.Compare(x, y) < 0 }
-
-func lessCounts(x, y Counts) bool { return seq.Compare(x, y) < 0 }
-
 func (tp *trackedProc) getUpdate() Update {
 	u := Update{
 		GroupName:  tp.groupName,
@@ -139,15 +133,13 @@ func (tp *trackedProc) getUpdate() Update {
 }
 
 // NewTracker creates a Tracker.
-func NewTracker(namer common.MatchNamer, trackChildren bool, alwaysRecheck bool, debug bool) *Tracker {
+func NewTracker(namer common.MatchNamer, trackChildren bool) *Tracker {
 	return &Tracker{
 		namer:         namer,
 		tracked:       make(map[ID]*trackedProc),
 		procIds:       make(map[int]ID),
 		trackChildren: trackChildren,
-		alwaysRecheck: alwaysRecheck,
 		username:      make(map[int]string),
-		debug:         debug,
 	}
 }
 

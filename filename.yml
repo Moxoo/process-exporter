@@ -1,4 +1,88 @@
 process_names:
-  - comm:
-      - process-exporte
-      - prometheus
+  - name: "{{.Comm}}"
+    cmdline:
+      - '/usr/local/trident/trident+'
+  - name: "{{.Comm}}"
+    cmdline:
+      - '/home/robot/install/lib/chassis_driver/chassis_driver_node __name:=chassis_driver_node'
+  - name: "{{.Comm}}"
+    cmdline:
+      - '/home/robot/install/lib/kruisee_lidar/kruisee_lidar_node __name:=kruisee_lidar_node'
+  - name: "{{.Comm}}"
+    cmdline:
+      - '/home/robot/install/lib/laser_undistortion/laser_undistortion_node __name:=laser_undistortion'
+  - name: "{{.Comm}}"
+    cmdline:
+        - '/home/robot/install/lib/move_base/move_base cmd_vel:=/cmd_vel odom:=odom __name:=move_base'
+  - name: "{{.Comm}}"
+    cmdline:
+        - '/home/robot/install/lib/range_sensor_data_convert/sonar_data_convert_node __name:=sonar_data_convert_node'
+  - name: "{{.Comm}}"
+    cmdline:
+        - '/home/robot/install/lib/global_plan_server/global_plan_server __name:=global_plan_server'
+  - name: "{{.Comm}}"
+    cmdline:
+        - '/home/robot/install/lib/path_info/path_info __name:=path_info'
+  - name: "{{.Comm}}"
+    cmdline:
+        - '/home/robot/install/lib/obstacle_avoidance_teleop/obstacle_avoidance_teleop_node __name:=obstacle_avoidance_teleop'
+  - name: "{{.Comm}}"
+    cmdline:
+        - '/home/robot/install/lib/adaptive_adjust_screen/adaptive_adjust_screen __name:=adaptive_adjust_screen'
+  - name: "{{.Comm}}"
+    cmdline:
+        - '/home/robot/install/lib/recharge/recharge_node __name:=recharge'
+  - name: "{{.Comm}}"
+    cmdline:
+        - '/home/robot/install/lib/berxel_camera/berxel_camera __name:=berxel_lower'
+  - name: "{{.Comm}}"
+    cmdline:
+        - '/home/robot/install/lib/berxel_camera/berxel_camera __name:=berxel_upper'
+  - name: "{{.Comm}}"
+    cmdline:
+        - '/home/robot/install/lib/cadmus_pcie/cadmus_pcie_node __name:=cadmus_pcie'
+  - name: "{{.Comm}}"
+    cmdline:
+        - '/home/robot/install/lib/body_recognition/body_recognition_node __name:=body_recognition'
+  - name: "{{.Comm}}"
+    cmdline:
+        - '/home/robot/install/lib/cadmus_visiontrack/visiontrack __name:=visiontrack'
+  - name: "{{.Comm}}"
+    cmdline:
+        - '/home/robot/install/lib/cadmus_task/cadmus_task_node __name:=cadmus_task'
+  - name: "{{.Comm}}"
+    cmdline:
+        - '/home/robot/install/lib/map_manager/map_manager_node __name:=map_manager'
+  - name: "{{.Comm}}"
+    cmdline:
+        - '/home/robot/install/lib/deebot_slam/deebot_slam_node __name:=deebot_slam'
+  - name: "{{.Comm}}"
+    cmdline:
+        - '/home/robot/install/lib/explore_lite/explore __name:=explore'
+  - name: "{{.Comm}}"
+    cmdline:
+        - '/home/robot/install/lib/lora_control/lora_control_node __name:=lora_control'
+  - name: "{{.Comm}}"
+    cmdline:
+        - '/home/robot/install/lib/cadmus_elevator/cadmus_elevator_node __name:=cadmus_elevator'
+  - name: "{{.Comm}}"
+    cmdline:
+        - '/home/robot/install/lib/enter_lift/enter_lift action_input:=/action_run __name:=enter_lift'
+  - name: "{{.Comm}}"
+    cmdline:
+        - '/home/robot/install/lib/enter_turnstile/enter_turnstile __name:=enter_turnstile'
+  - name: "{{.Comm}}"
+    cmdline:
+        - '/home/robot/install/lib/pedestrain_detect/pedestrain_detect __name:=pedestrain_detect'
+  - name: "{{.Comm}}"
+    cmdline:
+        - '/home/robot/install/lib/cadmus_transmission/cadmus_transmission_node __name:=cadmus_transmission'
+  - name: "{{.Comm}}"
+    cmdline:
+        - '/home/robot/install/lib/time_statistics/time_statistics_node __name:=time_statistics'
+  - name: "{{.Comm}}"
+    cmdline:
+        - '/home/robot/install/lib/escalator_detection_ai/escalator_detect /home/robot/install/share/escalator_detection_ai/yolov7_tiny_escalator.rknn __name:=escalator_detect'
+  - name: "{{.Comm}}"
+    cmdline:
+        - '/home/robot/install/lib/escalator_avoid/escalator_avoid_node __name:=escalator_avoid'

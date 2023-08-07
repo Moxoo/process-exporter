@@ -2,9 +2,8 @@ package proc
 
 import (
 	"fmt"
+	"github.com/ncabatoff/process-exporter/src/common"
 	"time"
-
-	common "github.com/ncabatoff/process-exporter"
 )
 
 type msi map[string]int

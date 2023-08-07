@@ -191,10 +191,8 @@ type (
 	// FS implements Source.
 	FS struct {
 		procfs.FS
-		BootTime    uint64
-		MountPoint  string
-		GatherSMaps bool
-		debug       bool
+		BootTime   uint64
+		MountPoint string
 	}
 )
 
@@ -511,16 +509,6 @@ func (p proc) GetMetrics() (Metrics, int, error) {
 		VmSwapBytes:   uint64(status.VmSwap),
 	}
 
-	if p.proccache.fs.GatherSMaps {
-		smaps, err := p.Proc.ProcSMapsRollup()
-		if err != nil {
-			softerrors |= 1
-		} else {
-			memory.ProportionalBytes = smaps.Pss
-			memory.ProportionalSwapBytes = smaps.SwapPss
-		}
-	}
-
 	return Metrics{
 		Counts: counts,
 		Memory: memory,
@@ -588,7 +576,7 @@ const userHZ = 100
 
 // NewFS returns a new FS mounted under the given mountPoint. It will error
 // if the mount point can't be read.
-func NewFS(mountPoint string, debug bool) (*FS, error) {
+func NewFS(mountPoint string) (*FS, error) {
 	fs, err := procfs.NewFS(mountPoint)
 	if err != nil {
 		return nil, err
@@ -597,7 +585,7 @@ func NewFS(mountPoint string, debug bool) (*FS, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &FS{fs, stat.BootTime, mountPoint, false, debug}, nil
+	return &FS{fs, stat.BootTime, mountPoint}, nil
 }
 
 func (fs *FS) threadFs(pid int) (*FS, error) {
@@ -606,7 +594,7 @@ func (fs *FS) threadFs(pid int) (*FS, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &FS{tfs, fs.BootTime, mountPoint, fs.GatherSMaps, false}, nil
+	return &FS{tfs, fs.BootTime, mountPoint}, nil
 }
 
 // AllProcs implements Source.

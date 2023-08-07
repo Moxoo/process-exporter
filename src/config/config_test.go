@@ -1,8 +1,7 @@
 package config
 
 import (
-	// "github.com/kylelemons/godebug/pretty"
-	common "github.com/ncabatoff/process-exporter"
+	"github.com/ncabatoff/process-exporter/src/common"
 	. "gopkg.in/check.v1"
 	"time"
 )
@@ -17,7 +16,7 @@ process_names:
   - exe: 
     - /bin/ksh
 `
-	cfg, err := GetConfig(yml, false)
+	cfg, err := GetConfig(yml)
 	c.Assert(err, IsNil)
 	c.Check(cfg.MatchNamers.matchers, HasLen, 3)
 
@@ -65,7 +64,7 @@ process_names:
     - cat
     name: "{{.StartTime}}"
 `
-	cfg, err := GetConfig(yml, false)
+	cfg, err := GetConfig(yml)
 	c.Assert(err, IsNil)
 	c.Check(cfg.MatchNamers.matchers, HasLen, 3)
 

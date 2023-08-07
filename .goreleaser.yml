@@ -1,6 +1,6 @@
 builds:
-  - main: cmd/process-exporter/main.go
-    binary: process-exporter
+  - main: main.go
+    binary: trident
     flags: -tags netgo
     ldflags:
       - -s -w
@@ -22,12 +22,12 @@ builds:
       - 6
       - 7
 archives:
-  - name_template: "process-exporter-{{ .Version }}.{{ .Os }}-{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+  - name_template: "trident-{{ .Version }}.{{ .Os }}-{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
     wrap_in_directory: true
 checksum:
   name_template: checksums.txt
 nfpms:
-  - homepage: https://github.com/ncabatoff/process-exporter
+  - homepage: https://github.com/ncabatoff/trident
     maintainer: nick.cabatoff+procexp@gmail.com
     description: Prometheus exporter to report on processes running
     license: MIT
@@ -36,13 +36,13 @@ nfpms:
       - rpm
     bindir: /usr/bin
     contents:
-      - src: packaging/process-exporter.service
-        dst: /lib/systemd/system/process-exporter.service
+      - src: packaging/trident.service
+        dst: /lib/systemd/system/trident.service
       - src: packaging/conf/all.yaml
-        dst: /etc/process-exporter/all.yaml
+        dst: /etc/trident/all.yaml
         type: config
-      - src: packaging/default/process-exporter
-        dst: /etc/default/process-exporter
+      - src: packaging/default/trident
+        dst: /etc/default/trident
         type: config
 
     scripts:
@@ -51,7 +51,7 @@ nfpms:
       preremove: "packaging/scripts/preremove.sh"
 release:
   github:
-    owner: ncabatoff
-    name: process-exporter
+    owner: cadmus
+    name: trident
   draft: false
   prerelease: true

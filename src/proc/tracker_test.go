@@ -36,7 +36,7 @@ func TestTrackerBasic(t *testing.T) {
 		},
 	}
 	// Note that n3 should not be tracked according to our namer.
-	tr := NewTracker(newNamer(n1, n2, n4), false, false, false)
+	tr := NewTracker(newNamer(n1, n2, n4), false)
 
 	opts := cmpopts.SortSlices(lessUpdateGroupName)
 	for i, tc := range tests {
@@ -78,7 +78,7 @@ func TestTrackerChildren(t *testing.T) {
 		},
 	}
 	// Only n2 and children of n2s should be tracked
-	tr := NewTracker(newNamer(n2), true, false, false)
+	tr := NewTracker(newNamer(n2), true)
 
 	for i, tc := range tests {
 		_, got, err := tr.Update(procInfoIter(tc.procs...))
@@ -111,72 +111,13 @@ func TestTrackerMetrics(t *testing.T) {
 				Filedesc{2, 20}, tm, 1, States{Running: 1}, msi{}, nil},
 		},
 	}
-	tr := NewTracker(newNamer(n), false, false, false)
+	tr := NewTracker(newNamer(n), false)
 
 	for i, tc := range tests {
 		_, got, err := tr.Update(procInfoIter(tc.proc))
 		noerr(t, err)
 		if diff := cmp.Diff(got, []Update{tc.want}); diff != "" {
 			t.Errorf("%d: update differs: (-got +want)\n%s", i, diff)
-		}
-	}
-}
-
-func TestTrackerThreads(t *testing.T) {
-	p, n, tm := 1, "g1", time.Unix(0, 0).UTC()
-
-	tests := []struct {
-		proc IDInfo
-		want Update
-	}{
-		{
-			piinfo(p, n, Counts{}, Memory{}, Filedesc{1, 1}, 1),
-			Update{n, Delta{}, Memory{}, Filedesc{1, 1}, tm, 1, States{}, msi{}, nil},
-		}, {
-			piinfot(p, n, Counts{}, Memory{}, Filedesc{1, 1}, []Thread{
-				{ThreadID(ID{p, 0}), "t1", Counts{1, 2, 3, 4, 5, 6, 0, 0}, "", States{}},
-				{ThreadID(ID{p + 1, 0}), "t2", Counts{1, 1, 1, 1, 1, 1, 0, 0}, "", States{}},
-			}),
-			Update{n, Delta{}, Memory{}, Filedesc{1, 1}, tm, 2, States{}, msi{},
-				[]ThreadUpdate{
-					{"t1", Delta{}},
-					{"t2", Delta{}},
-				},
-			},
-		}, {
-			piinfot(p, n, Counts{}, Memory{}, Filedesc{1, 1}, []Thread{
-				{ThreadID(ID{p, 0}), "t1", Counts{2, 3, 4, 5, 6, 7, 0, 0}, "", States{}},
-				{ThreadID(ID{p + 1, 0}), "t2", Counts{2, 2, 2, 2, 2, 2, 0, 0}, "", States{}},
-				{ThreadID(ID{p + 2, 0}), "t2", Counts{1, 1, 1, 1, 1, 1, 0, 0}, "", States{}},
-			}),
-			Update{n, Delta{}, Memory{}, Filedesc{1, 1}, tm, 3, States{}, msi{},
-				[]ThreadUpdate{
-					{"t1", Delta{1, 1, 1, 1, 1, 1, 0, 0}},
-					{"t2", Delta{1, 1, 1, 1, 1, 1, 0, 0}},
-					{"t2", Delta{}},
-				},
-			},
-		}, {
-			piinfot(p, n, Counts{}, Memory{}, Filedesc{1, 1}, []Thread{
-				{ThreadID(ID{p, 0}), "t1", Counts{2, 3, 4, 5, 6, 7, 0, 0}, "", States{}},
-				{ThreadID(ID{p + 2, 0}), "t2", Counts{1, 2, 3, 4, 5, 6, 0, 0}, "", States{}},
-			}),
-			Update{n, Delta{}, Memory{}, Filedesc{1, 1}, tm, 2, States{}, msi{},
-				[]ThreadUpdate{
-					{"t1", Delta{}},
-					{"t2", Delta{0, 1, 2, 3, 4, 5, 0, 0}},
-				},
-			},
-		},
-	}
-	tr := NewTracker(newNamer(n), false, false, false)
-
-	opts := cmpopts.SortSlices(lessThreadUpdate)
-	for i, tc := range tests {
-		_, got, err := tr.Update(procInfoIter(tc.proc))
-		noerr(t, err)
-		if diff := cmp.Diff(got, []Update{tc.want}, opts); diff != "" {
-			t.Errorf("%d: update differs: (-got +want)\n%s, %v, %v", i, diff, got[0].Threads, tc.want.Threads)
 		}
 	}
 }

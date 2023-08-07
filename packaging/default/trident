@@ -1,0 +1,2 @@
+# trident startup flags
+OPTS='--config.path /etc/trident/all.yaml

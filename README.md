@@ -1,5 +1,5 @@
-# process-exporter
-Prometheus exporter that mines /proc to report on selected processes.
+# trident
+exporter that mines /proc and /sys .etc., to report on selected processes and os metrics.
 
 [release]: https://github.com/ncabatoff/process-exporter/releases/latest
 

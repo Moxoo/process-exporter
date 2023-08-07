@@ -29,7 +29,7 @@ func procInfoIter(ps ...IDInfo) *procIterator {
 }
 
 func allprocs(procpath string) Iter {
-	fs, err := NewFS(procpath, false)
+	fs, err := NewFS(procpath)
 	if err != nil {
 		cwd, _ := os.Getwd()
 		panic("can't read " + procpath + ", cwd=" + cwd + ", err=" + fmt.Sprintf("%v", err))
@@ -38,7 +38,7 @@ func allprocs(procpath string) Iter {
 }
 
 func TestReadFixture(t *testing.T) {
-	procs := allprocs("../fixtures")
+	procs := allprocs("../../fixtures")
 	var pii IDInfo
 
 	count := 0
@@ -61,8 +61,8 @@ func TestReadFixture(t *testing.T) {
 
 	stime, _ := time.Parse(time.RFC3339Nano, "2017-10-19T22:52:51.19Z")
 	wantstatic := Static{
-		Name:         "process-exporte",
-		Cmdline:      []string{"./process-exporter", "-procnames", "bash"},
+		Name:         "trident",
+		Cmdline:      []string{"./trident", "-procnames", "bash"},
 		Cgroups:      []string{"/system.slice/docker-8dde0b0d6e919baef8d635cd9399b22639ed1e400eaec1b1cb94ff3b216cf3c3.scope"},
 		ParentPid:    10884,
 		StartTime:    stime,

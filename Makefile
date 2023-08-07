@@ -17,9 +17,9 @@ VERSION_LDFLAGS := \
   -X github.com/prometheus/common/version.Revision=$(REVISION) \
   -X main.version=$(TAG_VERSION)
 
-SMOKE_TEST = -config.path packaging/conf/all.yaml -once-to-stdout-delay 1s |grep -q 'namedprocess_namegroup_memory_bytes{groupname="process-exporte",memtype="virtual"}'
+SMOKE_TEST = -config.path packaging/conf/all.yaml
 
-all: format vet test build smoke
+all: format vet test build
 
 style:
 	@echo ">> checking code style"
@@ -39,17 +39,8 @@ vet:
 
 build:
 	@echo ">> building code"
-	cd cmd/process-exporter; CGO_ENABLED=0 go build -ldflags "$(VERSION_LDFLAGS)" -o ../../process-exporter -a -tags netgo
-
-smoke:
-	@echo ">> smoke testing process-exporter"
-	./process-exporter $(SMOKE_TEST)
-
-integ:
-	@echo ">> integration testing process-exporter"
-	go build -o integration-tester cmd/integration-tester/main.go
-	go build -o load-generator cmd/load-generator/main.go
-	./integration-tester -write-size-bytes 65536
+	#GOARCH=arm64 CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc go build
+	cd src; CGO_ENABLED=0 go build -ldflags "$(VERSION_LDFLAGS)" -o ../bin/trident -a -tags netgo
 
 install:
 	@echo ">> installing binary"

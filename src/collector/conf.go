@@ -14,6 +14,8 @@ var (
 	cpuCollectInterval  = 3 * time.Second
 	cpuSyslogWriteScale = 5
 
+	thermalCollectInterval = 5 * time.Second
+
 	sysPath  = "/sys"
 	procPath = "/proc"
 )

@@ -1,0 +1,13 @@
+[Unit]
+Description=trident for Poseidon
+
+[Service]
+User=root
+Type=simple
+EnvironmentFile=-/etc/default/trident
+ExecStart=/usr/bin/trident $OPTS
+KillMode=process
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
